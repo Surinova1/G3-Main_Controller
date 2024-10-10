@@ -182,7 +182,8 @@ float Right_Front_Steer_Pos = 0, Right_Rear_Steer_Pos=0, Right_Front_Steer_Pos_T
 double Rover_Centre_Dist=0, TimeTaken=0, Inner_Speed=0, Outer_Speed=0;
 double Mean_kmph =0;
 int Left_Steering_Speed=0, Right_Steering_Speed=0;
-uint8_t Write_Value[14],Read_Value[14],Prev_Write_Value[14],RFS1,RRS1;
+int16_t Write_Value[14],Read_Value[14],Prev_Write_Value[14];
+float RFS1,RRS1;
 bool Store_Data = 0;
 /* USER CODE END PV */
 
@@ -548,7 +549,7 @@ int main(void)
 //	EEPROM_Write(15,0,(uint8_t*)Write_Value,sizeof(Write_Value));
 //	HAL_Delay(3000);
 //	EEPROM_Read(15,0,(uint8_t*)Read_Value,sizeof(Read_Value));
-	
+		Read_EEPROM_Data();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -560,6 +561,7 @@ int main(void)
 	Macro_Controls();
 	Wheel_Controls();
 		Steering_Controls();
+//		EEPROM_Store_Data();
 //		Node_Id_Check();
 //		HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_6);HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_7);
 //			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_SET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
@@ -1072,8 +1074,8 @@ void Steering_Controls(void)
         Right_Motor_Position = Pot_Angle < 89 ? Right_Motor_Position : -Right_Motor_Position;
         Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
         Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
-			//Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
-			//Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1
+//			  Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
+//			  Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1;
         /*Motor Position Calculation*/
 
         /*Steering Speed Calculation*/
@@ -1105,12 +1107,16 @@ void Steering_Controls(void)
         Right_Motor_Position = 6.23;//8.23
         Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
         Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+//			Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
+//			Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1;
     }
 		else // Do Nothing
 		{
 			Left_Steering_Speed = Right_Steering_Speed = 0;	
       Right_Motor_Position = 0; // +5 deg
       Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+//			Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
+//			Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1;
 		}
 		
     if ( Right_Front_Steer_Pos_Temp != Right_Front_Steer_Pos)

@@ -325,6 +325,11 @@
           <WinNumber>1</WinNumber>
           <ItemText>Right_IMU_Node,0x0A</ItemText>
         </Ww>
+        <Ww>
+          <count>35</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>RRS1</ItemText>
+        </Ww>
       </WatchWindow1>
       <WatchWindow2>
         <Ww>
@@ -425,52 +430,57 @@
         <Ww>
           <count>19</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Mode,0x0A</ItemText>
+          <ItemText>Left_Transmit_Vel,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Left_Transmit_Vel,0x0A</ItemText>
+          <ItemText>Right_Transmit_Vel,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Speed,0x0A</ItemText>
+          <ItemText>CAN_State,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Right_Transmit_Vel,0x0A</ItemText>
+          <ItemText>CAN_Error,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>2</WinNumber>
-          <ItemText>CAN_State,0x0A</ItemText>
+          <ItemText>Torque</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>2</WinNumber>
-          <ItemText>CAN_Error,0x0A</ItemText>
+          <ItemText>Left_Frame_Speed,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>25</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Torque</ItemText>
+          <ItemText>\\F446RET6\../Core/Src/main.c\Left_Transmit_Vel</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Left_Frame_Speed,0x0A</ItemText>
+          <ItemText>Write_Value,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>27</count>
           <WinNumber>2</WinNumber>
-          <ItemText>\\F446RET6\../Core/Src/main.c\Left_Transmit_Vel</ItemText>
+          <ItemText>Read_Value,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>28</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Pot_Angle,0x0A</ItemText>
+          <ItemText>RRS1</ItemText>
+        </Ww>
+        <Ww>
+          <count>29</count>
+          <WinNumber>2</WinNumber>
+          <ItemText>RFS1</ItemText>
         </Ww>
       </WatchWindow2>
       <MemoryWindow1>
