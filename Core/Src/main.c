@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "math.h"
+#include <stdlib.h>
+#include "EEPROM.h"
 
 /* USER CODE END Includes */
 
@@ -80,8 +82,13 @@
 	#define					VOLTAGE					  0x017
 	#define        BUZZER_OFF          HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_SET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET)
 	#define        BUZZER_ON        HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_RESET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_RESET)
-	
-	
+	#define					POSITION					11
+	#define					POS_ID						0x0C
+	#define     Half_Wheel_Base                      850
+	#define     Half_Wheel_Track                     1218  // 1218 - Min Width		1368 - Max Width
+	#define     Pi                                   3.141592654
+	#define     Steering_Reductions                  76
+	#define     Wheel_Reductions                     114
 
 /* USER CODE END PD */
 
@@ -93,6 +100,8 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
 CAN_HandleTypeDef hcan2;
+
+I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
 
@@ -139,8 +148,9 @@ float  Macro_Speed = 0, Macro_Speed_Temp=0;
 /* 							DRIVE_WHEELS_VARIABLES 						*/
 bool DRIVES_ERROR_FLAG = NULL;
 float L_R_Err=0, R_R_Err=0, C_Err=0, Contour_Avg=0, Drive_Torque=1, Wheel_Torque = 1;
-float Vel_Limit=1, Vel_Limit_Temp=1, Torque=0, Torque_Temp=0 , Prev_Torque=0, Prev_Vel_Limit=30;
+float Vel_Limit=10, Vel_Limit_Temp=1, Torque=0, Torque_Temp=0 , Prev_Torque=0, Prev_Vel_Limit=30;
 int Left_Wheels_Torque =0, Left_Wheels_Torque_Temp=0;
+
 
 /* 							DRIVE_WHEELS_VARIABLES 						*/
 
@@ -164,6 +174,16 @@ uint8_t Buzzer_Acivated=0;
 uint8_t RFS_Motor_Count=0,RRS_Motor_Count;
 float Inner_Angle=0;
 float RFS_Pos=0,RRS_Pos=0;
+
+double Right_Steer_Angle = 0;
+float Right_Turn_Radius = 0, Chord_Dist=0, Turning_Radius=0, Right_Motor_Position=0;
+float Right_Front_Steer_Vel=0,Right_Rear_Steer_Vel=0,Right_Front_Steer_Vel_Temp=0,Right_Rear_Steer_Vel_Temp=0;
+float Right_Front_Steer_Pos = 0, Right_Rear_Steer_Pos=0, Right_Front_Steer_Pos_Temp=0, Right_Rear_Steer_Pos_Temp=0; ;
+double Rover_Centre_Dist=0, TimeTaken=0, Inner_Speed=0, Outer_Speed=0;
+double Mean_kmph =0;
+int Left_Steering_Speed=0, Right_Steering_Speed=0;
+uint8_t Write_Value[14],Read_Value[14],Prev_Write_Value[14],RFS1,RRS1;
+bool Store_Data = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -176,6 +196,7 @@ static void MX_SPI1_Init(void);
 static void MX_UART4_Init(void);
 static void MX_UART5_Init(void);
 static void MX_TIM14_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 void Joystick_Reception(void);
@@ -188,6 +209,10 @@ void Heal_Error(uint8_t Axis_Id);
 void Stop_Motors(void);
 void Drives_Error_Check(void);
 void Steering_Wheel(void);
+void Steering_Controls(void);
+float KMPHtoRPS(float kmph);
+void EEPROM_Store_Data(void);
+void Read_EEPROM_Data(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -212,7 +237,10 @@ void CAN_Transmit ( uint8_t NODE, uint8_t Command, float Tx_Data,	uint8_t Data_S
 									memcpy (TxData, &Tx_Data, Data_Size);					
 									TxHeader.StdId = (NODE << 5)| VEL_ID;
 									break;
-		
+		case POSITION:	
+									memcpy (TxData, &Tx_Data, Data_Size);					
+									TxHeader.StdId = (NODE << 5)| POS_ID;
+									break;
 		case TORQUE:	
 									memcpy (TxData, &Tx_Data, Data_Size);					
 									TxHeader.StdId = (NODE << 5)| TRQ_ID;
@@ -430,10 +458,9 @@ void Set_Motor_Velocity ( uint8_t Axis , float Velocity )
 		CAN_Transmit(Axis,VELOCITY,Velocity,4,DATA);//osDelay(10);
 
 }
-void Set_Motor_Position ( uint8_t Axis , float Position)
+void Set_Motor_Position ( uint8_t Axis , float Position )
 {
-		CAN_Transmit(Axis,VELOCITY,Position,4,DATA);//osDelay(10);
-
+		CAN_Transmit(Axis,POSITION,Position,4,DATA);
 }
 void Start_Calibration_For (int axis_id, int command_id, uint8_t loop_times)
 {
@@ -497,9 +524,10 @@ int main(void)
   MX_CAN1_Init();
   MX_CAN2_Init();
   MX_SPI1_Init();
-//  MX_UART4_Init();
-//  MX_UART5_Init();
+  MX_UART4_Init();
+  MX_UART5_Init();
   MX_TIM14_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 	
 	HAL_Delay(600);
@@ -516,7 +544,10 @@ int main(void)
 	MX_UART5_Init();
 	HAL_UART_Receive_IT(&huart4,BT_Rx ,sizeof(BT_Rx));
 	/* UART INITS */
-	
+//	Write_Value[0]=11;
+//	EEPROM_Write(15,0,(uint8_t*)Write_Value,sizeof(Write_Value));
+//	HAL_Delay(3000);
+//	EEPROM_Read(15,0,(uint8_t*)Read_Value,sizeof(Read_Value));
 	
   /* USER CODE END 2 */
 
@@ -528,6 +559,7 @@ int main(void)
 		Joystick_Reception();
 	Macro_Controls();
 	Wheel_Controls();
+		Steering_Controls();
 //		Node_Id_Check();
 //		HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_6);HAL_GPIO_TogglePin(GPIOC,GPIO_PIN_7);
 //			HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_SET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);
@@ -693,6 +725,40 @@ static void MX_CAN2_Init(void)
 	HAL_CAN_ConfigFilter(&hcan2, &canfilterconfig2);
 
   /* USER CODE END CAN2_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -942,8 +1008,8 @@ void Macro_Controls (void)
 			switch (Joystick)
 			{
 				case 0 :   Macro_Speed =  0; 				break;								
-				case 1 :   Macro_Speed =	5;				break; 
-				case 2 :   Macro_Speed = -5;				break; 
+				case 1 :   Macro_Speed =	10;				break; 
+				case 2 :   Macro_Speed = -10;				break; 
 				default :														break;
 			}
 			Joystick_Temp = Joystick;
@@ -965,18 +1031,99 @@ void Macro_Controls (void)
 }
 
 
-void Steering_Wheel(void)
+//void Steering_Wheel(void)
+//{
+//	if(Steering_Mode==1)
+//	{
+//		Inner_Angle =	( Pot_Angle / 2 ) - 45;
+//			RFS_Pos=(Inner_Angle/45)*10;
+//			RRS_Pos=-RFS_Pos;			
+//	}
+//	
+//		
+//}
+float KMPHtoRPS(float kmph)
 {
-	if(Steering_Mode==1)
-	{
-		Inner_Angle =	( Pot_Angle / 2 ) - 45;
-			RFS_Pos=(Inner_Angle/45)*10;
-			RRS_Pos=-RFS_Pos;			
-	}
-	
-	
-	
-	
+    float rps=0; float Circumference = 1335.177;
+    rps = (((kmph/(Circumference/1000)*1000)/3600)*Wheel_Reductions);
+    return rps;
+}
+void Steering_Controls(void)
+{
+    if ( Steering_Mode == 1 )
+    {
+        /*Steering Angle Calculation*/
+        Right_Steer_Angle = abs(Pot_Angle - 90);
+        Right_Steer_Angle = Right_Steer_Angle * 0.38889;
+        if (Pot_Angle < 89) Right_Steer_Angle = Right_Steer_Angle / 2.825;
+        else if ( Pot_Angle >88 && Pot_Angle < 92 ) Right_Steer_Angle = 0;
+        Right_Steer_Angle = round (Right_Steer_Angle * 10) / 10 ;
+        /*Steering Angle Calculation*/
+
+        /*Turning Radius Calculation*/
+        Right_Turn_Radius = Half_Wheel_Base/(sin(Right_Steer_Angle*Pi/180));
+        Chord_Dist = Right_Turn_Radius -  (Half_Wheel_Base/(tan(Right_Steer_Angle*Pi/180)));
+        Turning_Radius = Pot_Angle < 89 ? Right_Turn_Radius - Chord_Dist - Half_Wheel_Track : Pot_Angle > 91 ? Right_Turn_Radius - Chord_Dist + Half_Wheel_Track : 0;
+        Turning_Radius = Turning_Radius/1000;
+        /*Turning Radius Calculation*/
+
+        /*Motor Position Calculation*/
+        Right_Motor_Position = (Right_Steer_Angle * Steering_Reductions ) / 360 ;
+        Right_Motor_Position = Pot_Angle < 89 ? Right_Motor_Position : -Right_Motor_Position;
+        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+			//Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
+			//Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1
+        /*Motor Position Calculation*/
+
+        /*Steering Speed Calculation*/
+        Mean_kmph   = Vel_Limit / 24;
+        TimeTaken   = Turning_Radius/(Mean_kmph*0.277);
+        Inner_Speed = ((Turning_Radius- 1.368f)/TimeTaken)*3.6;
+        Inner_Speed = KMPHtoRPS(Inner_Speed) -  Vel_Limit;
+        Outer_Speed = ((Turning_Radius+ 1.368f)/TimeTaken)*3.6;
+        Outer_Speed = KMPHtoRPS(Outer_Speed) - Vel_Limit;
+
+        if ( Pot_Angle  < 89 ) // Left Turn of the Rover
+        {
+            Left_Steering_Speed = Inner_Speed;
+            Right_Steering_Speed = Outer_Speed;
+        }
+        else if ( Pot_Angle > 91 ) // Right Turn of the Rover
+        {
+            Left_Steering_Speed = Outer_Speed;
+            Right_Steering_Speed = Inner_Speed;
+        }
+        else // Straight Run
+        {
+            Left_Steering_Speed = Right_Steering_Speed = 0;		
+        }
+    }
+    else if ( Steering_Mode == 2 )
+    {
+        Left_Steering_Speed = Right_Steering_Speed = 0;	
+        Right_Motor_Position = 6.23;//8.23
+        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+    }
+		else // Do Nothing
+		{
+			Left_Steering_Speed = Right_Steering_Speed = 0;	
+      Right_Motor_Position = 0; // +5 deg
+      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+		}
+		
+    if ( Right_Front_Steer_Pos_Temp != Right_Front_Steer_Pos)
+    {
+        Set_Motor_Position ( 7 , Right_Front_Steer_Pos );HAL_Delay(1);
+        Right_Front_Steer_Pos_Temp = Right_Front_Steer_Pos;
+    }
+    
+    if ( Right_Rear_Steer_Pos_Temp != Right_Rear_Steer_Pos)
+    {
+  			Set_Motor_Position ( 8 , Right_Rear_Steer_Pos );HAL_Delay(1);
+        Right_Rear_Steer_Pos_Temp = Right_Rear_Steer_Pos;
+    }
 }
 
 void Wheel_Controls (void)
@@ -1001,10 +1148,42 @@ void Wheel_Controls (void)
 		{
 			for ( uint8_t i = 1 ; i < 4 ; i++ )
 			{ 
-				Set_Motor_Torque ( i , Torque );
+				if((Steering_Mode == 2 )&&(i==1)){Set_Motor_Torque ( i , -Torque );} else {Set_Motor_Torque ( i , Torque );} ;
 			}
 			Torque_Temp = Torque;
 		}
+}
+void EEPROM_Store_Data (void)
+{
+	
+	memcpy(&Write_Value[4], &Absolute_Position_Int[7], sizeof(Absolute_Position_Int[7]));
+	memcpy(&Write_Value[8], &Absolute_Position_Int[8], sizeof(Absolute_Position_Int[8]));
+
+	
+	for(uint8_t i =0; i < 24; i++)
+		{
+			if ( !Store_Data)
+			{
+			if(Prev_Write_Value[i] != Write_Value[i])
+			{
+				Store_Data= 1;
+				Prev_Write_Value[i] = Write_Value[i];
+			}
+			else Store_Data = 0;
+			}
+		}
+			if ( Store_Data )
+		{
+		EEPROM_Write(15, 0, (uint8_t *)Write_Value, sizeof(Write_Value));
+		Store_Data = 0;
+		}
+
+}
+void Read_EEPROM_Data(void)
+{		
+	EEPROM_Read(15, 0, (uint8_t *)Read_Value, sizeof(Read_Value));
+		memcpy(&RFS1, &Read_Value[4],4 );	 				
+	memcpy(&RRS1, &Read_Value[8],4 );
 }
 void Drives_Error_Check(void)
 {
