@@ -27,7 +27,7 @@
 #include "math.h"
 #include <stdlib.h>
 #include "EEPROM.h"
-
+#include "time.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -148,7 +148,7 @@ float  Macro_Speed = 0, Macro_Speed_Temp=0;
 /* 							DRIVE_WHEELS_VARIABLES 						*/
 bool DRIVES_ERROR_FLAG = NULL;
 float L_R_Err=0, R_R_Err=0, C_Err=0, Contour_Avg=0, Drive_Torque=1, Wheel_Torque = 1;
-float Vel_Limit=10, Vel_Limit_Temp=1, Torque=0, Torque_Temp=0 , Prev_Torque=0, Prev_Vel_Limit=30;
+float Vel_Limit=10, Vel_Limit_Temp=1, Torque=0, Torque_Temp=0 , Prev_Torque=0, Prev_Vel_Limit=30,Right_Transmit_Vel,Right_Vel_Limit,Left_Transmit_Vel,Left_Vel_Limit;
 int Left_Wheels_Torque =0, Left_Wheels_Torque_Temp=0;
 
 
@@ -185,6 +185,7 @@ int Left_Steering_Speed=0, Right_Steering_Speed=0;
 int16_t Write_Value[14],Read_Value[14],Prev_Write_Value[14];
 float RFS1,RRS1;
 bool Store_Data = 0;
+uint8_t Left_Last_Tick,Right_Last_Tick;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -489,6 +490,10 @@ void Node_Id_Check()
 }
 if(Buzzer_Acivated){HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_SET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_SET);}
                 else{HAL_GPIO_WritePin(GPIOC,GPIO_PIN_6,GPIO_PIN_RESET);HAL_GPIO_WritePin(GPIOC,GPIO_PIN_7,GPIO_PIN_RESET);}
+}
+void Transmit_Velocity_Limit( uint8_t Axis , float Vel_Limit )
+{
+	if ( Vel_Limit >= 5 && Vel_Limit != 0 && Vel_Limit <=25 ) CAN_Transmit(Axis,VEL_LIMIT,Vel_Limit,4,DATA); 
 }
 /* USER CODE END 0 */
 
@@ -1158,6 +1163,29 @@ void Wheel_Controls (void)
 			}
 			Torque_Temp = Torque;
 		}
+		Right_Transmit_Vel=(Joystick!=0 )?12:0;
+		Left_Transmit_Vel=(Joystick==1 )?10:(Joystick==2)?12:0;
+		if ( Left_Transmit_Vel != Left_Vel_Limit ) 
+				{
+//					if (HAL_GetTick() - Left_Last_Tick >= 100) // Change every 5 ms
+					{
+//						Left_Last_Tick = HAL_GetTick();
+						Transmit_Velocity_Limit( 1 , Left_Transmit_Vel);
+						Left_Vel_Limit= Left_Transmit_Vel;
+					}
+				}
+				
+			if ( Right_Transmit_Vel != Right_Vel_Limit ) 
+				{
+//					if (HAL_GetTick() - Right_Last_Tick >= 100) // Change every 5 ms
+					{
+//						Right_Last_Tick = HAL_GetTick();
+						Transmit_Velocity_Limit( 2 , Right_Transmit_Vel);
+						Transmit_Velocity_Limit( 3 , Right_Transmit_Vel);
+						Right_Vel_Limit= Right_Transmit_Vel;
+					}
+				}
+else {}
 }
 void EEPROM_Store_Data (void)
 {
