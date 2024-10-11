@@ -299,6 +299,7 @@ void EEPROM_Store_Data (void);
 void Read_EEPROM_Data(void);
 float Left_Frame_PID ( float Left_Error_Value , unsigned long long 	L_Time_Stamp );
 void Transmit_Velocity_Limit( uint8_t Axis , float Vel_Limit );
+void Drives_Error_Check(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -537,7 +538,7 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan2)
 void Set_Motor_Torque ( uint8_t Axis , float Torque )
 {
 	//Torque =  (Axis==0) || (Axis==3)? -Torque : Torque ;	
-
+  Torque =  (Axis==0) || (Axis==3) ||(Axis==2) ? -Torque : Torque ;
 	CAN_Transmit(Axis,TORQUE,-Torque,4,DATA);// osDelay(1);//5
 }
 void Set_Motor_Velocity ( uint8_t Axis , float Velocity )
@@ -817,10 +818,10 @@ Prev_Write_Value[0] = 0xFE;
   {
 		Joystick_Reception();
   	Drives_Error_Check();
-		Steering_Controls();
-		New_Drive_Controls();
-		Left_Column_Control();
-		New_Brake_Controls();
+//		Steering_Controls();
+//		New_Drive_Controls();
+//		Left_Column_Control();
+//		New_Brake_Controls();
 //		Frame_Controls();
 		
 //		CAN_State = HAL_CAN_GetState(&hcan2);
@@ -1263,44 +1264,83 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void Reboot (int Axis)
-{	
-	TxHeader.DLC = 4;	
-	TxHeader.IDE = CAN_ID_STD;
-	TxHeader.RTR = CAN_RTR_DATA;
-	TxHeader.StdId = ( Axis <<5) | 0x016 ;	
-	HAL_CAN_AddTxMessage(&hcan2, &TxHeader, TxData, &TxMailbox);
-	//osDelay(1); 		
-}
-void Stop_Motors(void)
-{
-			for(uint8_t i = 1; i <= 3; i++){Set_Motor_Torque(i, 0);}	for(uint8_t i = 7; i <= 8; i++){Set_Motor_Velocity(i, 0);}
-}
-void Heal_Error(uint8_t Axis_Id)
-{
-	BUZZER_ON;
-	Stop_Motors();
-	
-	while ( Axis_State[Axis_Id] != 8 )
-	{
-		Reboot(Axis_Id);	HAL_Delay(3000);
-		//Start_Calibration_For ( Axis_Id,  8 , 2 );HAL_Delay(1000);
-	} 
-	
-	DRIVES_ERROR_FLAG = NULL;
-	BUZZER_OFF;
-}
+//void Reboot (int Axis)
+//{	
+//	TxHeader.DLC = 4;	
+//	TxHeader.IDE = CAN_ID_STD;
+//	TxHeader.RTR = CAN_RTR_DATA;
+//	TxHeader.StdId = ( Axis <<5) | 0x016 ;	
+//	HAL_CAN_AddTxMessage(&hcan2, &TxHeader, TxData, &TxMailbox);
+//	//osDelay(1); 		
+//}
+//void Stop_Motors(void)
+//{
+//			for(uint8_t i = 1; i <= 3; i++){Set_Motor_Torque(i, 0);}	for(uint8_t i = 7; i <= 8; i++){Set_Motor_Velocity(i, 0);}
+//}
+//void Heal_Error(uint8_t Axis_Id)
+//{
+//	BUZZER_ON;
+//	Stop_Motors();
+//	
+//	while ( Axis_State[Axis_Id] != 8 )
+//	{
+//		Reboot(Axis_Id);	HAL_Delay(3000);
+//		//Start_Calibration_For ( Axis_Id,  8 , 2 );HAL_Delay(1000);
+//	} 
+//	
+//	DRIVES_ERROR_FLAG = NULL;
+//	BUZZER_OFF;
+//}
+//void Drives_Error_Check(void)
+//{
+
+//	for(uint8_t i = 1; i <= 3; i++)
+//	{
+//	//	if ( i != 9 && i !=10 && i !=11 ){ if ( Axis_State[i] != 8 ){ DRIVES_ERROR_FLAG = SET; Heal_Error(i); } HAL_Delay(1); }
+//		if ( Axis_State[i] != 8 ){ DRIVES_ERROR_FLAG = SET; Heal_Error(i); } HAL_Delay(1); 
+//		
+//		//HAL_Delay(1);
+//	}
+//}
 void Drives_Error_Check(void)
 {
 
-	for(uint8_t i = 1; i <= 3; i++)
-	{
-	//	if ( i != 9 && i !=10 && i !=11 ){ if ( Axis_State[i] != 8 ){ DRIVES_ERROR_FLAG = SET; Heal_Error(i); } HAL_Delay(1); }
-		if ( Axis_State[i] != 8 ){ DRIVES_ERROR_FLAG = SET; Heal_Error(i); } HAL_Delay(1); 
-		
-		//HAL_Delay(1);
-	}
+ for(uint8_t i = 1; i < 4; i++)
+ {
+  if ((i!=4 || i!=5 || i!=6 ||  i!=9 || i!=10 || i!=11) && ( Axis_State[i] != 8 )){ DRIVES_ERROR_FLAG = SET; Heal_Error(i); HAL_Delay(10);} //HAL_Delay(3); 
+  HAL_Delay(3);
+ }
 }
+void Heal_Error(uint8_t Axis_Id)
+{
+ BUZZER_ON;Buzzer_Acivated=1;
+ Stop_Motors();
+ 
+ while ( Axis_State[Axis_Id] != 8 )
+ {
+  Reboot(Axis_Id); HAL_Delay(2000);
+  //Start_Calibration_For ( Axis_Id,  8 , 2 ); HAL_Delay(1500);
+ }
+ 
+ DRIVES_ERROR_FLAG = NULL;
+ BUZZER_OFF;Buzzer_Acivated=0;
+}
+void Reboot (int Axis)
+{ 
+ TxHeader.DLC = 4; 
+ TxHeader.IDE = CAN_ID_STD;
+ TxHeader.RTR = CAN_RTR_DATA;
+ TxHeader.StdId = ( Axis <<5) | 0x016 ; 
+ HAL_CAN_AddTxMessage(&hcan2, &TxHeader, TxData, &TxMailbox);
+ //HAL_Delay(1);   
+}
+
+void Stop_Motors(void)
+{
+   for(uint8_t i = 1; i <= 3; i++){Set_Motor_Torque(i, 0);} for(uint8_t i = 7; i <= 13; i++){if(i!=9 || i!=10 || i!=11) {Set_Motor_Velocity(i, 0);}}
+}
+
+
 void Frame_Control_Position_Adjust(void)
 {
 	if(Joystick==0)
@@ -1371,6 +1411,7 @@ void Joystick_Reception(void)
         Pot_Angle = BT_Rx[4];
         Joystick = BT_Rx[5];
         Shearing = BT_Rx[6];
+		Pot_Angle=abs(Pot_Angle-180);
 		break;
 		
 		case 2: 
@@ -1594,11 +1635,6 @@ void New_Drive_Controls(void)
 						for ( uint8_t i =2; i < 4 ; i++ ) {Transmit_Velocity_Limit( i , Right_Transmit_Vel);HAL_Delay(1);}
 					}
 				}
-    
-			
-			
-			
-			
 //			if ( Right_Vel_Limit > Prev_Right_Vel_Limit)
 //			{
 //				Right_Transmit_Vel = Prev_Right_Vel_Limit + 1;
@@ -1727,12 +1763,14 @@ void Steering_Controls(void)
 		
     if ( Right_Front_Steer_Pos_Temp != Right_Front_Steer_Pos)
     {
+//			 Right_Front_Steer_Pos=Right_Front_Steer_Pos-RFS1;
         Set_Motor_Position ( 7 , Right_Front_Steer_Pos );HAL_Delay(1);
         Right_Front_Steer_Pos_Temp = Right_Front_Steer_Pos;
     }
     
     if ( Right_Rear_Steer_Pos_Temp != Right_Rear_Steer_Pos)
     {
+			  //			 Right_Rear_Steer_Pos=Right_Rear_Steer_Pos-RRS1;
   			Set_Motor_Position ( 8 , Right_Rear_Steer_Pos );HAL_Delay(1);
         Right_Rear_Steer_Pos_Temp = Right_Rear_Steer_Pos;
     }
