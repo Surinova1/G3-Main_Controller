@@ -809,7 +809,7 @@ int main(void)
 
 Prev_Write_Value[0] = 0xFE;
 	
-	Read_EEPROM_Data();	
+//	Read_EEPROM_Data();	
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -818,8 +818,10 @@ Prev_Write_Value[0] = 0xFE;
   {
 		Joystick_Reception();
   	Drives_Error_Check();
-//		Steering_Controls();
-//		New_Drive_Controls();
+		Steering_Controls();
+		New_Drive_Controls();
+		EEPROM_Store_Data();
+		Read_EEPROM_Data();
 //		Left_Column_Control();
 //		New_Brake_Controls();
 //		Frame_Controls();
@@ -828,7 +830,7 @@ Prev_Write_Value[0] = 0xFE;
 //		CAN_Error = HAL_CAN_GetError(&hcan2);
 		
 //		HAL_Delay(1);
-//		Macro_Controls();	
+		Macro_Controls();	
 //		Left_Column_Control();
 //		Frame_Control_Position_Adjust();
 //		New_Brake_Controls();
@@ -1411,7 +1413,6 @@ void Joystick_Reception(void)
         Pot_Angle = BT_Rx[4];
         Joystick = BT_Rx[5];
         Shearing = BT_Rx[6];
-		Pot_Angle=abs(Pot_Angle-180);
 		break;
 		
 		case 2: 
@@ -1433,16 +1434,19 @@ void Macro_Controls (void)
 			switch (Joystick)
 			{
 				case 0 :   Macro_Speed =  0; 				break;								
-				case 1 :   Macro_Speed =	30;				break; 
-				case 2 :   Macro_Speed = -30;				break; 
+				case 1 :   Macro_Speed =	20;				break; 
+				case 2 :   Macro_Speed = -20;				break; 
 				default :														break;
 			}
 			Joystick_Temp = Joystick;
 		}
 	
 	}
-	
 	else {Macro_Speed = 0 ;}
+	Macro_Speed=((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) ? 0: ((Joystick==1)&&(Absolute_Position_Int[12]>=200 ||Absolute_Position_Int[13]>=200))?0:Macro_Speed;
+//	 if((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) Macro_Speed=0;
+//		if((Joystick==1)&&(Absolute_Position_Int[12]>=200 ||Absolute_Position_Int[13]>=200)) Macro_Speed=0;
+
 	
 	if ( Macro_Speed_Temp != Macro_Speed )
 	{
@@ -1611,6 +1615,7 @@ void New_Drive_Controls(void)
 						else {}
 
 						// Transmit the new velocity here
+						if(Steering_Mode==ZERO_TURN){	Left_Transmit_Vel=-Left_Transmit_Vel;}
 						Transmit_Velocity_Limit( 1 , Left_Transmit_Vel);
 					}
 				}
@@ -1737,7 +1742,7 @@ void Steering_Controls(void)
     else if ( Steering_Mode == ZERO_TURN )
     {
         Left_Steering_Speed = Right_Steering_Speed = 0;	
-        Right_Motor_Position = 8.23;
+        Right_Motor_Position = 6; // 8.23
         Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
         Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
 
