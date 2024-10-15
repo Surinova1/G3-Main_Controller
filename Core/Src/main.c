@@ -286,6 +286,7 @@ void Macro_Controls (void);
 float convertRawDataToFloat(uint8_t* data);
 uint16_t readEncoderValue(uint8_t* data);
 void Steering_Controls(void);
+void Steering_Controls_Encoder_Based(void);
 void New_Drive_Controls(void);
 void Brake_Controls(void);
 void Frame_Controls(void);
@@ -1690,6 +1691,88 @@ void Left_Column_Control (void)
 
 }
 
+void Steering_Controls_Encoder_Based(void)
+{
+	switch (Steering_Mode)
+		{
+		case ALL_WHEEL:
+		{/*Steering Angle Calculation*/
+        Right_Steer_Angle = abs(Pot_Angle - 90);
+        Right_Steer_Angle = Right_Steer_Angle * 0.38889;
+        if (Pot_Angle < 89) Right_Steer_Angle = Right_Steer_Angle / 2.825;
+        else if ( Pot_Angle >88 && Pot_Angle < 92 ) Right_Steer_Angle = 0;
+        Right_Steer_Angle = round (Right_Steer_Angle * 10) / 10 ;
+        /*Steering Angle Calculation*/
+
+        /*Turning Radius Calculation*/
+        Right_Turn_Radius = Half_Wheel_Base/(sin(Right_Steer_Angle*Pi/180));
+        Chord_Dist = Right_Turn_Radius -  (Half_Wheel_Base/(tan(Right_Steer_Angle*Pi/180)));
+        Turning_Radius = Pot_Angle < 89 ? Right_Turn_Radius - Chord_Dist - Half_Wheel_Track : Pot_Angle > 91 ? Right_Turn_Radius - Chord_Dist + Half_Wheel_Track : 0;
+        Turning_Radius = Turning_Radius/1000;
+        /*Turning Radius Calculation*/
+
+        /*Motor Position Calculation*/
+        Right_Motor_Position = (Right_Steer_Angle * Steering_Reductions ) / 360 ;
+        Right_Motor_Position = Pot_Angle < 89 ? Right_Motor_Position : -Right_Motor_Position;
+        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+        /*Motor Position Calculation*/
+
+        /*Steering Speed Calculation*/
+        Mean_kmph   = Vel_Limit / 24;
+        TimeTaken   = Turning_Radius/(Mean_kmph*0.277);
+        Inner_Speed = ((Turning_Radius- 1.368f)/TimeTaken)*3.6;
+        Inner_Speed = KMPHtoRPS(Inner_Speed) -  Vel_Limit;
+        Outer_Speed = ((Turning_Radius+ 1.368f)/TimeTaken)*3.6;
+        Outer_Speed = KMPHtoRPS(Outer_Speed) - Vel_Limit;
+
+        if ( Pot_Angle  < 89 ) // Left Turn of the Rover
+        {
+            Left_Steering_Speed = Inner_Speed;
+            Right_Steering_Speed = Outer_Speed;
+        }
+        else if ( Pot_Angle > 91 ) // Right Turn of the Rover
+        {
+            Left_Steering_Speed = Outer_Speed;
+            Right_Steering_Speed = Inner_Speed;
+        }
+        else // Straight Run
+        {
+            Left_Steering_Speed = Right_Steering_Speed = 0;		
+        }
+			
+			}
+		
+		
+		case ZERO_TURN:
+		{
+			 Left_Steering_Speed = Right_Steering_Speed = 0;	
+        Right_Motor_Position = 6; // 8.23
+        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+		}
+		
+		case WIDTH_SHRINK:
+		{
+			Left_Steering_Speed = Right_Steering_Speed = 0;	
+      Right_Motor_Position = -1.05; // -5 deg
+      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+		}
+		
+		case WIDTH_EXTEND:
+		{
+			Left_Steering_Speed = Right_Steering_Speed = 0;	
+      Right_Motor_Position = 1.05; // +5 deg
+      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+		}
+		default:
+		{
+			Left_Steering_Speed = Right_Steering_Speed = 0;	
+      Right_Motor_Position = 0; // +5 deg
+      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+		}
+	}
+}
 void Steering_Controls(void)
 {
     if ( Steering_Mode == ALL_WHEEL )
