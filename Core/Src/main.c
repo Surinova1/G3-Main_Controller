@@ -1435,8 +1435,8 @@ void Macro_Controls (void)
 			switch (Joystick)
 			{
 				case 0 :   Macro_Speed =  0; 				break;								
-				case 1 :   Macro_Speed =	20;				break; 
-				case 2 :   Macro_Speed = -20;				break; 
+				case 1 :   Macro_Speed =	10;				break; 
+				case 2 :   Macro_Speed = -10;				break; 
 				default :														break;
 			}
 			Joystick_Temp = Joystick;
