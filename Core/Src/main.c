@@ -163,7 +163,7 @@ uint8_t Mode=1,Mode_Temp, Speed=1, Joystick=0,Joystick_Brake=0, Steering_Mode=1,
 /* 							JOYSTICK_VARIABLES 						*/
 
 
-float  Macro_Speed = 0, Macro_Speed_Temp=0,Left_Macro_Speed,Right_Macro_Speed;
+float  Macro_Speed = 0, Macro_Speed_Temp=0,Left_Macro_Speed=0,Right_Macro_Speed=0,Right_Macro_Speed_Temp=0,Left_Macro_Speed_Temp=0;
 
 /* 							DRIVE_WHEELS_VARIABLES 						*/
 bool DRIVES_ERROR_FLAG = NULL;
@@ -181,7 +181,7 @@ uint8_t BT_Rx[8], RxBuff[8],Uart1;
 /* 							BT_VARIABLES 						*/
 
 float Absolute_Position[20];
-int16_t Absolute_Position_Int[20];
+int16_t Absolute_Position_Int[20],Left_Macro_Pos,Righ_Macro_Pos;
 
 uint8_t node_id_BLE,command_id_BLE;
 float Left_Encoder=0,Left_IMU=0,Right_Encoder=0,Right_IMU=0;
@@ -270,6 +270,8 @@ float RFS_Speed_Temp = 0, RRS_Speed_Temp = 0;
 float RFS_Home_Pos = 0, RRS_Home_Pos = 0,Right_Front_Encoder_value=-1,Right_Rear_Encoder_value=-1;
 uint16_t Right_Front_Encoder_value_Node,Right_Rear_Encoder_value_Node;
 uint16_t max_position =400,min_position = 0,speed_decrement_range = 50,max_difference = 5,step=50; 
+
+float Macro_Error = 0, Macro_Kp = 1, Correction_Speed = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -841,7 +843,7 @@ int main(void)
 //	if ( !Left_IMU_State ) Error_Handler();
 
 Prev_Write_Value[0] = 0xFE;
-	
+for(int i=1;i<4;i++){ Transmit_Velocity_Limit(i,24);}
 //	Read_EEPROM_Data();	
   /* USER CODE END 2 */
 
@@ -1504,41 +1506,61 @@ void Macro_Controls (void)
 	}
 }
 
-//void New_Macro_Controls()
-//{
+void New_Macro_Controls()
+{
 	//////////////possiblity1///////////////
-//	if (Mode == 1){
-//        if (Joystick_Temp != Joystick)
-//        {
-//            switch (Joystick)
-//            {
-//                case 0: Macro_Speed = 0;   break;
-//                case 1: Macro_Speed = 100;  break;
-//                case 2: Macro_Speed = -100; break;
-//                default: Macro_Speed = 0;  break;
-//            }
-//            Joystick_Temp = Joystick;
-//        }
-//	Macro_Speed = (Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position) || (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)  ? 0 : Macro_Speed;
-//  //approaching 0 or 400
-//  Macro_Speed = (Joystick == 1 && Absolute_Position_Int[12] >= (max_position - speed_decrement_range)) ? 10 : Macro_Speed;
-//  Macro_Speed = (Joystick == 2 && Absolute_Position_Int[12] <= (min_position + speed_decrement_range)) ? -10 : Macro_Speed;
-//		
-//	  if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)
-//        {
-//            // 13 is high
-//            if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { Macro_Speed = (Joystick == 1) ? 0 : -10;}  // Stop Motor 13 or slow it down when moving forward 
-//            // 12 is high
-//            else if (Absolute_Position_Int[12] > Absolute_Position_Int[13]) { Macro_Speed = (Joystick == 2) ? 0 : 10; }  // Stop Motor 12 or slow it down when moving backward  
-//        }
-//    }
-//	
-//	  else
-//    {
-//        Macro_Speed = 0;  // Not in Mode 1
-//    }
-//		
-//		
+	if (Mode == 1){
+        if (Joystick_Temp != Joystick)
+        {
+            switch (Joystick)
+            {
+                case 0: Macro_Speed = 0;   break;
+                case 1: Macro_Speed = 20;  break;
+                case 2: Macro_Speed = -20; break;
+                default: Macro_Speed = 0;  break;
+            }
+            Joystick_Temp = Joystick;
+        }
+
+	Macro_Speed = (Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position)   ? 0 : Macro_Speed;
+  //approaching 0 or 400
+    if(Joystick==1){
+  Macro_Speed = ( Absolute_Position_Int[12] >= (max_position - speed_decrement_range)) ? 10 : Macro_Speed;}
+    else if(Joystick==2){
+  Macro_Speed = ( Absolute_Position_Int[12] <= (min_position + speed_decrement_range)) ? -10 : Macro_Speed;}
+     else {}
+		Left_Macro_Speed=Right_Macro_Speed = Macro_Speed;
+	  if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)
+        {
+					Macro_Error = Absolute_Position_Int[13] - Absolute_Position_Int[12];
+					Correction_Speed = Macro_Error * Macro_Kp;
+					Correction_Speed = Correction_Speed > 10 ? 10 : Correction_Speed < -10 ? -10 : Correction_Speed;
+            // 13 is high
+            //if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { Macro_Speed = (Joystick == 1) ? 0 : -10;}  // Stop Motor 13 or slow it down when moving forward 
+            // 12 is high
+            //else if (Absolute_Position_Int[12] > Absolute_Position_Int[13]) { Macro_Speed = (Joystick == 2) ? 0 : 10; }  // Stop Motor 12 or slow it down when moving backward  
+        }
+				
+				Left_Macro_Speed = Left_Macro_Speed + Correction_Speed;
+    }
+	
+	  else
+    {
+        Right_Macro_Speed = Left_Macro_Speed=0;  // Not in Mode 1
+    }
+		
+		
+		
+		   if (Left_Macro_Speed_Temp != Left_Macro_Speed)
+    {
+        Set_Motor_Velocity(12, Left_Macro_Speed);
+        Left_Macro_Speed_Temp = Left_Macro_Speed;
+    }
+		   if (Right_Macro_Speed_Temp != Right_Macro_Speed)
+    {
+        Set_Motor_Velocity(13, Right_Macro_Speed);
+        Right_Macro_Speed_Temp = Right_Macro_Speed;
+    }
 //		   if (Macro_Speed_Temp != Macro_Speed)
 //    {
 //        Set_Motor_Velocity(12, Macro_Speed);
@@ -1602,7 +1624,7 @@ void Macro_Controls (void)
 //        Macro_Speed_Temp = Macro_Speed;
 //    }		
 //    } 
-//}
+}
 	
 
 int Adjust_Speed(int current_speed, int target_speed, int step) {

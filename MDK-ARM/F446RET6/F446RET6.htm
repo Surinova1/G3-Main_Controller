@@ -3,7 +3,7 @@
 <title>Static Call Graph - [F446RET6\F446RET6.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image F446RET6\F446RET6.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6160001: Last Updated: Thu Oct 17 20:26:31 2024
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 6160001: Last Updated: Fri Oct 18 18:40:41 2024
 <BR><P>
 <H3>Maximum Stack Usage =        216 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -627,7 +627,7 @@ Global Symbols
 <P><STRONG><a name="[7]"></a>DebugMon_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32f4xx_it.o(.text.DebugMon_Handler))
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f446xx.o(RESET)
 </UL>
-<P><STRONG><a name="[7c]"></a>Drives_Error_Check</STRONG> (Thumb, 106 bytes, Stack size 16 bytes, main.o(.text.Drives_Error_Check))
+<P><STRONG><a name="[7c]"></a>Drives_Error_Check</STRONG> (Thumb, 112 bytes, Stack size 16 bytes, main.o(.text.Drives_Error_Check))
 <BR><BR>[Stack]<UL><LI>Max Depth = 144<LI>Call Chain = Drives_Error_Check &rArr; Heal_Error &rArr; Stop_Motors &rArr; Set_Motor_Torque &rArr; HAL_Delay
 </UL>
 <BR>[Calls]<UL><LI><a href="#[7d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Heal_Error
@@ -655,7 +655,8 @@ Global Symbols
 <P><STRONG><a name="[81]"></a>HAL_CAN_AddTxMessage</STRONG> (Thumb, 164 bytes, Stack size 8 bytes, stm32f4xx_hal_can.o(.text.HAL_CAN_AddTxMessage))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = HAL_CAN_AddTxMessage
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Stop_Motors
+<BR>[Called By]<UL><LI><a href="#[6f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Stop_Motors
 <LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Set_Motor_Torque
 <LI><a href="#[7d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Heal_Error
 <LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
@@ -731,7 +732,7 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[7a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_IRQHandler
 </UL>
 
-<P><STRONG><a name="[87]"></a>HAL_CAN_RxFifo1MsgPendingCallback</STRONG> (Thumb, 960 bytes, Stack size 32 bytes, main.o(.text.HAL_CAN_RxFifo1MsgPendingCallback))
+<P><STRONG><a name="[87]"></a>HAL_CAN_RxFifo1MsgPendingCallback</STRONG> (Thumb, 912 bytes, Stack size 32 bytes, main.o(.text.HAL_CAN_RxFifo1MsgPendingCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 64<LI>Call Chain = HAL_CAN_RxFifo1MsgPendingCallback &rArr; __aeabi_dmul
 </UL>
 <BR>[Calls]<UL><LI><a href="#[95]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_GetRxMessage
@@ -1205,7 +1206,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f446xx.o(RESET)
 </UL>
-<P><STRONG><a name="[7d]"></a>Heal_Error</STRONG> (Thumb, 196 bytes, Stack size 40 bytes, main.o(.text.Heal_Error))
+<P><STRONG><a name="[7d]"></a>Heal_Error</STRONG> (Thumb, 198 bytes, Stack size 40 bytes, main.o(.text.Heal_Error))
 <BR><BR>[Stack]<UL><LI>Max Depth = 128<LI>Call Chain = Heal_Error &rArr; Stop_Motors &rArr; Set_Motor_Torque &rArr; HAL_Delay
 </UL>
 <BR>[Calls]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Stop_Motors
@@ -1230,7 +1231,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f446xx.o(RESET)
 </UL>
-<P><STRONG><a name="[d8]"></a>Joystick_Reception</STRONG> (Thumb, 366 bytes, Stack size 32 bytes, main.o(.text.Joystick_Reception))
+<P><STRONG><a name="[d8]"></a>Joystick_Reception</STRONG> (Thumb, 346 bytes, Stack size 32 bytes, main.o(.text.Joystick_Reception))
 <BR><BR>[Stack]<UL><LI>Max Depth = 68<LI>Call Chain = Joystick_Reception &rArr; arrayRotation
 </UL>
 <BR>[Calls]<UL><LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;arrayRotation
@@ -1333,13 +1334,13 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32f446xx.o(RESET)
 </UL>
-<P><STRONG><a name="[da]"></a>arrayRotation</STRONG> (Thumb, 524 bytes, Stack size 36 bytes, main.o(.text.arrayRotation))
+<P><STRONG><a name="[da]"></a>arrayRotation</STRONG> (Thumb, 476 bytes, Stack size 36 bytes, main.o(.text.arrayRotation))
 <BR><BR>[Stack]<UL><LI>Max Depth = 36<LI>Call Chain = arrayRotation
 </UL>
 <BR>[Called By]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Joystick_Reception
 </UL>
 
-<P><STRONG><a name="[6f]"></a>main</STRONG> (Thumb, 928 bytes, Stack size 48 bytes, main.o(.text.main))
+<P><STRONG><a name="[6f]"></a>main</STRONG> (Thumb, 1272 bytes, Stack size 48 bytes, main.o(.text.main))
 <BR><BR>[Stack]<UL><LI>Max Depth = 216<LI>Call Chain = main &rArr; SystemClock_Config &rArr; HAL_RCC_ClockConfig &rArr; HAL_RCC_GetSysClockFreq &rArr; __aeabi_uldivmod
 </UL>
 <BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
@@ -1360,6 +1361,7 @@ Global Symbols
 <LI><a href="#[9f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_Start
 <LI><a href="#[8f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_Init
 <LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_ConfigFilter
+<LI><a href="#[81]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_AddTxMessage
 <LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_CAN_ActivateNotification
 <LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
 <LI><a href="#[7c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Drives_Error_Check
