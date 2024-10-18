@@ -163,7 +163,7 @@ uint8_t Mode=1,Mode_Temp, Speed=1, Joystick=0,Joystick_Brake=0, Steering_Mode=1,
 /* 							JOYSTICK_VARIABLES 						*/
 
 
-float  Macro_Speed = 0, Macro_Speed_Temp=0;
+float  Macro_Speed = 0, Macro_Speed_Temp=0,Left_Macro_Speed,Right_Macro_Speed;
 
 /* 							DRIVE_WHEELS_VARIABLES 						*/
 bool DRIVES_ERROR_FLAG = NULL;
@@ -261,6 +261,15 @@ float Left_Frame_Out=0;
 
 uint16_t CAN_State=0, CAN_Error = 0;
 uint64_t Tick_Count = 0;
+
+bool STEERING_FLAG = NULL;
+
+float RFS_Speed = 0, RRS_Speed = 0;
+float RFS_Encoder_Angle = 0, RRS_Encoder_Angle = 0;
+float RFS_Speed_Temp = 0, RRS_Speed_Temp = 0;
+float RFS_Home_Pos = 0, RRS_Home_Pos = 0,Right_Front_Encoder_value=-1,Right_Rear_Encoder_value=-1;
+uint16_t Right_Front_Encoder_value_Node,Right_Rear_Encoder_value_Node;
+uint16_t max_position =400,min_position = 0,speed_decrement_range = 50,max_difference = 5,step=50; 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -301,6 +310,9 @@ void Read_EEPROM_Data(void);
 float Left_Frame_PID ( float Left_Error_Value , unsigned long long 	L_Time_Stamp );
 void Transmit_Velocity_Limit( uint8_t Axis , float Vel_Limit );
 void Drives_Error_Check(void);
+float New_Sensor_Pos(double Sensor_Value, double Zero_Pos);
+void New_Macro_Controls(void);
+int Adjust_Speed(int current_speed, int target_speed, int step);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -509,6 +521,19 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan2)
         Right_Encoder = readEncoderValue(RxData2);
         Right_Encoder_Node++; Sensor_Id[4]++;
         break;
+		
+		case 0x09:
+		  	Right_Front_Encoder_value=readEncoderValue(RxData2);
+		    Right_Front_Encoder_value_Node++;Sensor_Id[9]++;
+		  	RFS_Encoder_Angle = New_Sensor_Pos(Right_Front_Encoder_value, RFS_Home_Pos);
+	    	break;
+		
+		case 0x08 :
+		  	Right_Rear_Encoder_value=readEncoderValue(RxData2);
+		    Right_Rear_Encoder_value_Node++;Sensor_Id[8]++;
+				Right_Rear_Encoder_value = (Right_Rear_Encoder_value / 4096) * 720;
+		  	RRS_Encoder_Angle = New_Sensor_Pos(Right_Rear_Encoder_value, RRS_Home_Pos);
+		   	break;
 
     default:						 break;
 }
@@ -535,7 +560,14 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan2)
 
 	}
 }
-
+float New_Sensor_Pos(double Sensor_Value, double Zero_Pos)
+{
+	double output = 0;
+	output = ((Sensor_Value - Zero_Pos) > 360.0) ? ((Sensor_Value - Zero_Pos) - 720.0) : (Sensor_Value - Zero_Pos);
+	output = (output < -359.0) ? (output + 720.0) : output;
+	return output;
+	
+}
 void Set_Motor_Torque ( uint8_t Axis , float Torque )
 {
 	//Torque =  (Axis==0) || (Axis==3)? -Torque : Torque ;	
@@ -819,10 +851,24 @@ Prev_Write_Value[0] = 0xFE;
   {
 		Joystick_Reception();
   	Drives_Error_Check();
-		Steering_Controls();
-		New_Drive_Controls();
-		EEPROM_Store_Data();
-		Read_EEPROM_Data();
+			if(Mode==2){
+				Torque=5;
+		if ( Torque_Temp != Torque )
+		{
+			for ( uint8_t i = 1 ; i < 4 ; i++ )
+			{ 
+				Set_Motor_Torque ( i , Torque );
+			}
+			Torque_Temp = Torque;
+		}
+			}
+		else {
+			for ( uint8_t i = 1 ; i < 4 ; i++ ) Set_Motor_Torque ( i ,0  );
+			}
+//		Steering_Controls();
+//		New_Drive_Controls();
+//		EEPROM_Store_Data();
+//		Read_EEPROM_Data();
 //		Left_Column_Control();
 //		New_Brake_Controls();
 //		Frame_Controls();
@@ -831,7 +877,7 @@ Prev_Write_Value[0] = 0xFE;
 //		CAN_Error = HAL_CAN_GetError(&hcan2);
 		
 //		HAL_Delay(1);
-		Macro_Controls();	
+//		Macro_Controls();	
 //		Left_Column_Control();
 //		Frame_Control_Position_Adjust();
 //		New_Brake_Controls();
@@ -1435,8 +1481,8 @@ void Macro_Controls (void)
 			switch (Joystick)
 			{
 				case 0 :   Macro_Speed =  0; 				break;								
-				case 1 :   Macro_Speed =	10;				break; 
-				case 2 :   Macro_Speed = -10;				break; 
+				case 1 :   Macro_Speed =	20;				break; 
+				case 2 :   Macro_Speed = -20;				break; 
 				default :														break;
 			}
 			Joystick_Temp = Joystick;
@@ -1444,17 +1490,130 @@ void Macro_Controls (void)
 	
 	}
 	else {Macro_Speed = 0 ;}
-	Macro_Speed=((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) ? 0: ((Joystick==1)&&(Absolute_Position_Int[12]>=200 ||Absolute_Position_Int[13]>=200))?0:Macro_Speed;
-//	 if((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) Macro_Speed=0;
-//		if((Joystick==1)&&(Absolute_Position_Int[12]>=200 ||Absolute_Position_Int[13]>=200)) Macro_Speed=0;
-
 	
+//	Macro_Speed=((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) ? 0: ((Joystick==1)&&(Absolute_Position_Int[12]>=400))?10:0 ;
+	Macro_Speed=((Joystick==2)&&(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0)) ? 0: ((Joystick==1)&&(Absolute_Position_Int[12]>=400 ||Absolute_Position_Int[13]>=400))|| (abs(Absolute_Position_Int[13]-Absolute_Position_Int[12])>20)?0 :Macro_Speed;
+//		Macro_Speed=(Absolute_Position_Int[12]<0 ||Absolute_Position_Int[13]<0) ? 0: (Absolute_Position_Int[12]>=200 ||Absolute_Position_Int[13]>=200)||(abs(Absolute_Position_Int[13]-Absolute_Position_Int[12])>=5)|| (Mode!=1) ? 0 :100;
+//	(abs(Absolute_Position_Int[13]-Absolute_Position_Int[12])>20)
+
 	if ( Macro_Speed_Temp != Macro_Speed )
 	{
 		Set_Motor_Velocity ( 12, Macro_Speed ) ; 
 		Set_Motor_Velocity ( 13, Macro_Speed ) ;
 		Macro_Speed_Temp = Macro_Speed;
 	}
+}
+
+//void New_Macro_Controls()
+//{
+	//////////////possiblity1///////////////
+//	if (Mode == 1){
+//        if (Joystick_Temp != Joystick)
+//        {
+//            switch (Joystick)
+//            {
+//                case 0: Macro_Speed = 0;   break;
+//                case 1: Macro_Speed = 100;  break;
+//                case 2: Macro_Speed = -100; break;
+//                default: Macro_Speed = 0;  break;
+//            }
+//            Joystick_Temp = Joystick;
+//        }
+//	Macro_Speed = (Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position) || (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)  ? 0 : Macro_Speed;
+//  //approaching 0 or 400
+//  Macro_Speed = (Joystick == 1 && Absolute_Position_Int[12] >= (max_position - speed_decrement_range)) ? 10 : Macro_Speed;
+//  Macro_Speed = (Joystick == 2 && Absolute_Position_Int[12] <= (min_position + speed_decrement_range)) ? -10 : Macro_Speed;
+//		
+//	  if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)
+//        {
+//            // 13 is high
+//            if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { Macro_Speed = (Joystick == 1) ? 0 : -10;}  // Stop Motor 13 or slow it down when moving forward 
+//            // 12 is high
+//            else if (Absolute_Position_Int[12] > Absolute_Position_Int[13]) { Macro_Speed = (Joystick == 2) ? 0 : 10; }  // Stop Motor 12 or slow it down when moving backward  
+//        }
+//    }
+//	
+//	  else
+//    {
+//        Macro_Speed = 0;  // Not in Mode 1
+//    }
+//		
+//		
+//		   if (Macro_Speed_Temp != Macro_Speed)
+//    {
+//        Set_Motor_Velocity(12, Macro_Speed);
+//        Set_Motor_Velocity(13, Macro_Speed);
+//        Macro_Speed_Temp = Macro_Speed;
+//    }
+
+
+///////////////possiblity 2///////////////
+
+//  Macro_Speed = Adjust_Speed(Macro_Speed, Joystick, step);
+//    
+//    if (Mode == 1) {
+//        if (Joystick_Temp != Joystick) {
+//            switch (Joystick) {
+//                case 0: Macro_Speed = 0; break;
+//                case 1: Macro_Speed = 100; break;
+//                case 2: Macro_Speed = -100; break;
+//                default: Macro_Speed = 0; break;
+//            }
+//            Joystick_Temp = Joystick;
+//        }
+//        if (Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position ||
+//            Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position ||
+//            abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference) {
+//            Macro_Speed = 0;
+//        }
+
+//        if (Joystick == 1 && ((Absolute_Position_Int[12] >= (max_position - speed_decrement_range) || (Absolute_Position_Int[13] >= (max_position - speed_decrement_range))))) {
+////            Macro_Speed = Adjust_Speed(Macro_Speed, 10, step); 
+//					Macro_Speed=10;
+//        }
+//        if (Joystick == 2 && ((Absolute_Position_Int[12] <= (min_position + speed_decrement_range)||( Absolute_Position_Int[13] <= (min_position + speed_decrement_range))))) {
+////            Macro_Speed = Adjust_Speed(Macro_Speed, -10, step); 
+//							Macro_Speed=-10;
+//					
+//        }
+
+//        if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference) {
+//            if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { 
+//							
+////						          Macro_Speed = Adjust_Speed(Macro_Speed, (Joystick == 1) ? 0 : -10, step);
+//							} 
+//						else if (Absolute_Position_Int[12] > Absolute_Position_Int[13]) {
+//							
+////						           Macro_Speed = Adjust_Speed(Macro_Speed, (Joystick == 2) ? 0 : 10, step);  
+//							}			
+//        }
+//				
+//				if (Macro_Speed_Temp != Macro_Speed) {
+//        Set_Motor_Velocity(12, Macro_Speed);
+//        Set_Motor_Velocity(13, Macro_Speed);
+//        Macro_Speed_Temp = Macro_Speed;
+//    }
+//    }
+//    else {
+//        Macro_Speed = 0; 
+//			 if (Macro_Speed_Temp != Macro_Speed) {
+//        Set_Motor_Velocity(12, Macro_Speed);
+//        Set_Motor_Velocity(13, Macro_Speed);
+//        Macro_Speed_Temp = Macro_Speed;
+//    }		
+//    } 
+//}
+	
+
+int Adjust_Speed(int current_speed, int target_speed, int step) {
+    if (current_speed < target_speed) {
+        current_speed += step;
+        if (current_speed > target_speed) current_speed = target_speed; 
+    } else if (current_speed > target_speed) {
+        current_speed -= step;
+        if (current_speed < target_speed) current_speed = target_speed;
+    }
+    return current_speed;
 }
 
 void Wheel_Controls (void)
@@ -1693,10 +1852,20 @@ void Left_Column_Control (void)
 
 void Steering_Controls_Encoder_Based(void)
 {
-	switch (Steering_Mode)
-		{
-		case ALL_WHEEL:
-		{/*Steering Angle Calculation*/
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	if(STEERING_FLAG == 0)
+	{
+		RFS_Speed = (RFS_Encoder_Angle < STEERING_BOUNDARY && RFS_Encoder_Angle > -STEERING_BOUNDARY) ? 0 : RFS_Encoder_Angle > 1 ? -3 : 3;
+		RRS_Speed = (RRS_Encoder_Angle < STEERING_BOUNDARY && RRS_Encoder_Angle > -STEERING_BOUNDARY) ? 0 : RRS_Encoder_Angle > 1 ? -3 : 3;
+		if(RFS_Speed == 0 && RRS_Speed == 0){
+			STEERING_FLAG = SET;
+		}
+	}
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	 /*Steering Angle Calculation*/
+	if(STEERING_FLAG == 1)
+	{
         Right_Steer_Angle = abs(Pot_Angle - 90);
         Right_Steer_Angle = Right_Steer_Angle * 0.38889;
         if (Pot_Angle < 89) Right_Steer_Angle = Right_Steer_Angle / 2.825;
@@ -1704,74 +1873,31 @@ void Steering_Controls_Encoder_Based(void)
         Right_Steer_Angle = round (Right_Steer_Angle * 10) / 10 ;
         /*Steering Angle Calculation*/
 
-        /*Turning Radius Calculation*/
-        Right_Turn_Radius = Half_Wheel_Base/(sin(Right_Steer_Angle*Pi/180));
-        Chord_Dist = Right_Turn_Radius -  (Half_Wheel_Base/(tan(Right_Steer_Angle*Pi/180)));
-        Turning_Radius = Pot_Angle < 89 ? Right_Turn_Radius - Chord_Dist - Half_Wheel_Track : Pot_Angle > 91 ? Right_Turn_Radius - Chord_Dist + Half_Wheel_Track : 0;
-        Turning_Radius = Turning_Radius/1000;
-        /*Turning Radius Calculation*/
-
-        /*Motor Position Calculation*/
-        Right_Motor_Position = (Right_Steer_Angle * Steering_Reductions ) / 360 ;
-        Right_Motor_Position = Pot_Angle < 89 ? Right_Motor_Position : -Right_Motor_Position;
-        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
-        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
-        /*Motor Position Calculation*/
-
-        /*Steering Speed Calculation*/
-        Mean_kmph   = Vel_Limit / 24;
-        TimeTaken   = Turning_Radius/(Mean_kmph*0.277);
-        Inner_Speed = ((Turning_Radius- 1.368f)/TimeTaken)*3.6;
-        Inner_Speed = KMPHtoRPS(Inner_Speed) -  Vel_Limit;
-        Outer_Speed = ((Turning_Radius+ 1.368f)/TimeTaken)*3.6;
-        Outer_Speed = KMPHtoRPS(Outer_Speed) - Vel_Limit;
-
-        if ( Pot_Angle  < 89 ) // Left Turn of the Rover
-        {
-            Left_Steering_Speed = Inner_Speed;
-            Right_Steering_Speed = Outer_Speed;
-        }
-        else if ( Pot_Angle > 91 ) // Right Turn of the Rover
-        {
-            Left_Steering_Speed = Outer_Speed;
-            Right_Steering_Speed = Inner_Speed;
-        }
-        else // Straight Run
-        {
-            Left_Steering_Speed = Right_Steering_Speed = 0;		
-        }
-			
-			}
-		
-		
-		case ZERO_TURN:
-		{
-			 Left_Steering_Speed = Right_Steering_Speed = 0;	
-        Right_Motor_Position = 6; // 8.23
-        Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
-        Right_Rear_Steer_Pos = -Right_Rear_Steer_Pos;
+	switch (Steering_Mode){
+		case 1:
+		{if(Pot_Angle<88){ 
+			RFS_Speed=(Right_Steer_Angle-RFS_Encoder_Angle)>STEERING_BOUNDARY?3:(Right_Steer_Angle-RFS_Encoder_Angle)<-STEERING_BOUNDARY?-3:0;
+			RRS_Speed=(Right_Steer_Angle-RRS_Encoder_Angle)>STEERING_BOUNDARY?3:(Right_Steer_Angle-RRS_Encoder_Angle)<-STEERING_BOUNDARY?-3:0;
+		}
+		else if(Pot_Angle>92){
+			RFS_Speed=(Right_Steer_Angle-RFS_Encoder_Angle)>STEERING_BOUNDARY?-3:(Right_Steer_Angle-RFS_Encoder_Angle)<-STEERING_BOUNDARY?3:0;
+			RRS_Speed=(Right_Steer_Angle-RRS_Encoder_Angle)>STEERING_BOUNDARY?-3:(Right_Steer_Angle-RRS_Encoder_Angle)<-STEERING_BOUNDARY?3:0;		
+		}
+		else {RFS_Speed=0;RRS_Speed=0;}
 		}
 		
-		case WIDTH_SHRINK:
-		{
-			Left_Steering_Speed = Right_Steering_Speed = 0;	
-      Right_Motor_Position = -1.05; // -5 deg
-      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
-		}
+		break;
 		
-		case WIDTH_EXTEND:
-		{
-			Left_Steering_Speed = Right_Steering_Speed = 0;	
-      Right_Motor_Position = 1.05; // +5 deg
-      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
+		default : break;
 		}
-		default:
-		{
-			Left_Steering_Speed = Right_Steering_Speed = 0;	
-      Right_Motor_Position = 0; // +5 deg
-      Right_Rear_Steer_Pos = Right_Front_Steer_Pos = Right_Motor_Position;
-		}
-	}
+	}		
+		RRS_Speed = -RRS_Speed;
+		
+		RFS_Speed = RFS_Speed < 0 && RFS_Encoder_Angle >= 12 ? 0 : RFS_Speed > 0 && RFS_Encoder_Angle >= 34 ? 0 : RFS_Speed;
+		RRS_Speed = RRS_Speed > 0 && RRS_Encoder_Angle >= 12 ? 0 : RRS_Speed < 0 && RRS_Encoder_Angle >= 34 ? 0 : RRS_Speed;
+		
+	if(RFS_Speed != RFS_Speed_Temp){ Set_Motor_Velocity(7,RFS_Speed);RFS_Speed_Temp=RFS_Speed;}
+	if(RRS_Speed != RRS_Speed_Temp){Set_Motor_Velocity(8,RRS_Speed);RRS_Speed_Temp=RRS_Speed;}
 }
 void Steering_Controls(void)
 {
