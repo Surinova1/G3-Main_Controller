@@ -843,7 +843,7 @@ int main(void)
 //	if ( !Left_IMU_State ) Error_Handler();
 
 Prev_Write_Value[0] = 0xFE;
-for(int i=1;i<4;i++){ Transmit_Velocity_Limit(i,24);}
+for(int i=1;i<4;i++){ Transmit_Velocity_Limit(i,72);}
 //	Read_EEPROM_Data();	
   /* USER CODE END 2 */
 
@@ -864,9 +864,13 @@ for(int i=1;i<4;i++){ Transmit_Velocity_Limit(i,24);}
 			Torque_Temp = Torque;
 		}
 			}
-		else {
-			for ( uint8_t i = 1 ; i < 4 ; i++ ) Set_Motor_Torque ( i ,0  );
+		else if(Mode==1) {
+					if ( Torque_Temp != Torque ){
+			for ( uint8_t i = 1 ; i < 4 ; i++ ) {Set_Motor_Torque ( i ,0  );}
+			   Torque_Temp = Torque;
+					}
 			}
+		else{}
 //		Steering_Controls();
 //		New_Drive_Controls();
 //		EEPROM_Store_Data();
@@ -1907,10 +1911,14 @@ void Steering_Controls_Encoder_Based(void)
 			RRS_Speed=(Right_Steer_Angle-RRS_Encoder_Angle)>STEERING_BOUNDARY?-3:(Right_Steer_Angle-RRS_Encoder_Angle)<-STEERING_BOUNDARY?3:0;		
 		}
 		else {RFS_Speed=0;RRS_Speed=0;}
+		
 		}
+			break;
 		case 2: 
 		{
-				
+			Right_Steer_Angle=28;
+			RFS_Speed=(Right_Steer_Angle-RFS_Encoder_Angle) >STEERING_BOUNDARY ?3: (Right_Steer_Angle-RFS_Encoder_Angle) < -STEERING_BOUNDARY? -3:0;
+		  RRS_Speed=(Right_Steer_Angle-RRS_Encoder_Angle) >STEERING_BOUNDARY? 3: (Right_Steer_Angle-RRS_Encoder_Angle) < -STEERING_BOUNDARY? -3:0;
 		}
 		
 		break;
