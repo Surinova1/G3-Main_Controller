@@ -1908,6 +1908,10 @@ void Steering_Controls_Encoder_Based(void)
 		}
 		else {RFS_Speed=0;RRS_Speed=0;}
 		}
+		case 2: 
+		{
+				
+		}
 		
 		break;
 		
