@@ -1522,7 +1522,7 @@ void New_Macro_Controls()
             Joystick_Temp = Joystick;
         }
 
-	Macro_Speed = (Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position)   ? 0 : Macro_Speed;
+	Macro_Speed = ( Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position)   ? 0 : Macro_Speed;
   //approaching 0 or 400
     if(Joystick==1){
   Macro_Speed = ( Absolute_Position_Int[12] >= (max_position - speed_decrement_range)) ? 10 : Macro_Speed;}
@@ -1534,6 +1534,7 @@ void New_Macro_Controls()
         {
 					Macro_Error = Absolute_Position_Int[13] - Absolute_Position_Int[12];
 					Correction_Speed = Macro_Error * Macro_Kp;
+					Correction_Speed = Correction_Speed < 2 && Correction_Speed > -2 ? 0 : Correction_Speed;
 					Correction_Speed = Correction_Speed > 10 ? 10 : Correction_Speed < -10 ? -10 : Correction_Speed;
             // 13 is high
             //if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { Macro_Speed = (Joystick == 1) ? 0 : -10;}  // Stop Motor 13 or slow it down when moving forward 
