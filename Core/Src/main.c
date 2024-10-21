@@ -315,6 +315,7 @@ void Drives_Error_Check(void);
 float New_Sensor_Pos(double Sensor_Value, double Zero_Pos);
 void New_Macro_Controls(void);
 int Adjust_Speed(int current_speed, int target_speed, int step);
+void Macro(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -852,25 +853,26 @@ for(int i=1;i<4;i++){ Transmit_Velocity_Limit(i,72);}
   while (1)
   {
 		Joystick_Reception();
-  	Drives_Error_Check();
-			if(Mode==2){
-				Torque=5;
-		if ( Torque_Temp != Torque )
-		{
-			for ( uint8_t i = 1 ; i < 4 ; i++ )
-			{ 
-				Set_Motor_Torque ( i , Torque );
-			}
-			Torque_Temp = Torque;
-		}
-			}
-		else if(Mode==1) {
-					if ( Torque_Temp != Torque ){
-			for ( uint8_t i = 1 ; i < 4 ; i++ ) {Set_Motor_Torque ( i ,0  );}
-			   Torque_Temp = Torque;
-					}
-			}
-		else{}
+		Macro();
+//  	Drives_Error_Check();
+//			if(Mode==2){
+//				Torque=5;
+//		if ( Torque_Temp != Torque )
+//		{
+//			for ( uint8_t i = 1 ; i < 4 ; i++ )
+//			{ 
+//				Set_Motor_Torque ( i , Torque );
+//			}
+//			Torque_Temp = Torque;
+//		}
+//			}
+//		else if(Mode==1) {
+//					if ( Torque_Temp != Torque ){
+//			for ( uint8_t i = 1 ; i < 4 ; i++ ) {Set_Motor_Torque ( i ,0  );}
+//			   Torque_Temp = Torque;
+//					}
+//			}
+//		else{}
 //		Steering_Controls();
 //		New_Drive_Controls();
 //		EEPROM_Store_Data();
@@ -1539,7 +1541,7 @@ void New_Macro_Controls()
 					Macro_Error = Absolute_Position_Int[13] - Absolute_Position_Int[12];
 					Correction_Speed = Macro_Error * Macro_Kp;
 					Correction_Speed = Correction_Speed < 2 && Correction_Speed > -2 ? 0 : Correction_Speed;
-					Correction_Speed = Correction_Speed > 10 ? 10 : Correction_Speed < -10 ? -10 : Correction_Speed;
+					Correction_Speed = Correction_Speed > 5 ? 5 : Correction_Speed < -5 ? -5 : Correction_Speed;
             // 13 is high
             //if (Absolute_Position_Int[13] > Absolute_Position_Int[12]) { Macro_Speed = (Joystick == 1) ? 0 : -10;}  // Stop Motor 13 or slow it down when moving forward 
             // 12 is high
@@ -1554,7 +1556,8 @@ void New_Macro_Controls()
         Right_Macro_Speed = Left_Macro_Speed=0;  // Not in Mode 1
     }
 		
-		
+		//Macro_Speed = ( Absolute_Position_Int[12] < min_position || Absolute_Position_Int[12] > max_position || Absolute_Position_Int[13] < min_position || Absolute_Position_Int[13] > max_position)   ? 0 : Macro_Speed;
+
 		
 		   if (Left_Macro_Speed_Temp != Left_Macro_Speed)
     {
@@ -2282,7 +2285,75 @@ void Dynamic_Width_Adjustment (void)
 }
 
 
+void Macro(void)
+{
+	if (Mode == 1){
+        if (Joystick_Temp != Joystick)
+        {
+            switch (Joystick)
+            {
+                case 0: Macro_Speed = 0;   break;
+                case 1: Macro_Speed = 80;  break;
+                case 2: Macro_Speed = -80; break;
+                default: Macro_Speed = 0;  break;
+            }
+            Joystick_Temp = Joystick;
+        }
+				
+	
+			Left_Macro_Speed = Right_Macro_Speed = Macro_Speed;
+			
+			
+				
+				
+				Left_Macro_Speed = Left_Macro_Speed > 0 &&  Absolute_Position_Int[12] >= 150 ? 5 : Left_Macro_Speed < 0 && Absolute_Position_Int[12] <= 50 ? -5 : Left_Macro_Speed;
+				Right_Macro_Speed = Right_Macro_Speed > 0 && Absolute_Position_Int[13] >= 150 ? 5 : Right_Macro_Speed < 0 && Absolute_Position_Int[13] <= 50 ? -5 : Right_Macro_Speed;
 
+				
+				
+				Left_Macro_Speed = Left_Macro_Speed > 0 &&  Absolute_Position_Int[12] >= 200 ? 0 : Left_Macro_Speed < 0 && Absolute_Position_Int[12] <= 0 ? 0 : Left_Macro_Speed;
+				Right_Macro_Speed = Right_Macro_Speed > 0 &&  Absolute_Position_Int[13] >= 200 ? 0 : Right_Macro_Speed < 0 && Absolute_Position_Int[13] <= 0 ? 0 : Right_Macro_Speed;
+				
+				if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > max_difference)
+        {
+					if (abs(Absolute_Position_Int[13] - Absolute_Position_Int[12]) > 10)
+					{
+						Left_Macro_Speed = Joystick != 0 ? 0 : Left_Macro_Speed;
+						Right_Macro_Speed = Joystick != 0 ? 0 : Right_Macro_Speed;
+					}
+					
+					Macro_Error = Absolute_Position_Int[13] - Absolute_Position_Int[12];
+					Correction_Speed = Macro_Error * Macro_Kp;
+					Correction_Speed = Correction_Speed < 2 && Correction_Speed > -2 ? 0 : Correction_Speed;
+					Correction_Speed = Correction_Speed > 10 ? 10 : Correction_Speed < -10 ? -10 : Correction_Speed;
+          
+					
+        }
+			
+			else 
+			{
+				Correction_Speed = 0;
+			}
+				
+				Left_Macro_Speed = Left_Macro_Speed + Correction_Speed;
+			}
+	
+			else
+			{
+				Left_Macro_Speed = 0; Right_Macro_Speed = 0;
+			}
+				
+			 if (Left_Macro_Speed_Temp != Left_Macro_Speed)
+    {
+        Set_Motor_Velocity(12, Left_Macro_Speed);
+        Left_Macro_Speed_Temp = Left_Macro_Speed;
+    }
+		   if (Right_Macro_Speed_Temp != Right_Macro_Speed)
+    {
+        Set_Motor_Velocity(13, Right_Macro_Speed);
+        Right_Macro_Speed_Temp = Right_Macro_Speed;
+    }
+}
 
 	
 
